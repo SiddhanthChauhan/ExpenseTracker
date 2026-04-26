@@ -2,20 +2,14 @@ import express from 'express';
 import type { Request, Response } from 'express'; // Explicit type import
 import cors from 'cors';
 import { z } from 'zod';
+import { createExpenseSchema } from './schema.js';
 import db from './db/index.js'; // Note the .js extension, required for ESM
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// 1. Define our strict validation schema
-const createExpenseSchema = z.object({
-  amount: z.number().int().positive("Amount must be a positive integer (paise)"),
-  category: z.string().min(1, "Category is required"),
-  description: z.string().optional(),
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be YYYY-MM-DD format"),
-  idempotency_key: z.string().uuid("Must be a valid UUID")
-});
+
 
 // 2. The POST Route
 app.post('/expenses', (req: Request, res: Response): any => {
