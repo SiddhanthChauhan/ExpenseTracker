@@ -5,7 +5,7 @@ A production-ready, full-stack personal finance application built under a strict
 Live Application: https://expense-tracker-chi-sable-18.vercel.app
 Live API Endpoint: https://expensetrackerapi-jsle.onrender.com
 
-## 🚀 Tech Stack
+## Tech Stack
 
 - Frontend: Next.js 16 (App Router), React 19, Tailwind CSS v4, TypeScript
 - Data Fetching and State: TanStack Query (React Query)
@@ -15,7 +15,7 @@ Live API Endpoint: https://expensetrackerapi-jsle.onrender.com
 - Validation: Zod (Client and Server side)
 - Testing: Node.js Native Test Runner (node:test)
 
-## 🧠 Key Design Decisions and Engineering Focus
+## Key Design Decisions and Engineering Focus
 
 ### 1. Robust Money Handling (Zero Floating-Point Errors)
 
@@ -43,7 +43,7 @@ For this assessment, SQLite was chosen over a distributed relational DB (like Po
 - Why: It allows zero-configuration, instant local setup for reviewers while still enforcing strict ACID compliance and constraints.
 - Production tuning: Write-Ahead Logging (`journal_mode=WAL`) was enabled to improve concurrent read/write performance.
 
-## ⚖️ Trade-offs and Intentional Omissions (Timebox Constraints)
+## Trade-offs and Intentional Omissions (Timebox Constraints)
 
 Given the limited timebox, the following deliberate trade-offs were made to prioritize core data correctness:
 
@@ -52,14 +52,14 @@ Given the limited timebox, the following deliberate trade-offs were made to prio
 - Security hardening: Packages like `helmet` (HTTP headers) and `express-rate-limit` (abuse protection) were omitted to focus on assignment business logic.
 - Monorepo separation: Both frontend and backend are housed in one repo for ease of review. A true microservice architecture would decouple deployment pipelines further.
 
-## ✨ Nice-to-Have Features Implemented
+## Nice-to-Have Features Implemented
 
 - Advanced UI polish: Built a premium, dark-themed dashboard prioritizing UX hierarchy (descriptions prioritized over categories).
 - Summary view: Implemented an efficient single-pass `reduce` function to aggregate categorical spending, visualized via a responsive Recharts donut graph.
 - Automated testing: Wrote zero-dependency unit tests using `node:test` to prove the Zod schema rejects negative money, floating-point numbers, and malformed dates.
 - Local timezone awareness: Fixed standard UTC date generation bugs by offsetting the browser local timezone, ensuring late-night expenses log on the correct day.
 
-## 🛠️ Local Development Setup
+## Local Development Setup
 
 ### 1) Clone and Install
 
@@ -90,7 +90,7 @@ npm run dev
 # Client runs on http://localhost:3000
 ```
 
-## 📡 API Contract
+## API Contract
 
 ### POST /expenses
 
