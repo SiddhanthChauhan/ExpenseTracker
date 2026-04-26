@@ -68,6 +68,38 @@ app.post('/expenses', (req: Request, res: Response): any => {
   }
 });
 
+// 3. The GET Route
+app.get('/expenses', (req: Request, res: Response): any => {
+  try {
+    const { category, sort } = req.query;
+
+    let query = 'SELECT * FROM expenses';
+    const queryParams: any[] = [];
+
+    // Apply filtering
+    if (category && typeof category === 'string') {
+      query += ' WHERE category = ?';
+      queryParams.push(category);
+    }
+
+    // Apply sorting
+    if (sort === 'date_desc') {
+      query += ' ORDER BY date DESC, created_at DESC';
+    } else {
+      // Default fallback just in case
+      query += ' ORDER BY created_at DESC';
+    }
+
+    const stmt = db.prepare(query);
+    const expenses = stmt.all(...queryParams);
+
+    return res.status(200).json(expenses);
+  } catch (error) {
+    console.error("Failed to fetch expenses:", error);
+    return res.status(500).json({ error: "Failed to fetch expenses" });
+  }
+});
+
 // Start the server
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
