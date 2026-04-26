@@ -6,13 +6,19 @@ import { useCreateExpense } from '../lib/hooks';
 
 export default function ExpenseForm() {
     // Generate today's date in YYYY-MM-DD format
-    const getTodayDate = () => new Date().toISOString().split('T')[0];
+    const getTodayDate = () => {
+        const now = new Date();
+        const offsetMs = now.getTimezoneOffset() * 60 * 1000;
+        const localDate = new Date(now.getTime() - offsetMs);
+        return localDate.toISOString().split('T')[0];
+    };
     const [amount, setAmount] = useState('');
     const [category, setCategory] = useState('');
     const [description, setDescription] = useState('');
     const [date, setDate] = useState(getTodayDate());
 
     const mutation = useCreateExpense();
+    const [idempotencyKey, setIdempotencyKey] = useState(uuidv4());
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -27,7 +33,7 @@ export default function ExpenseForm() {
                 category,
                 description: description || null,
                 date,
-                idempotency_key: uuidv4(), // Core idempotency rule
+                idempotency_key: idempotencyKey, // Core idempotency rule
             },
             {
                 onSuccess: () => {
@@ -35,6 +41,7 @@ export default function ExpenseForm() {
                     setCategory('');
                     setDescription('');
                     setDate(getTodayDate());
+                    setIdempotencyKey(uuidv4());
                 },
             }
         );

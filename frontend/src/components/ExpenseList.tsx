@@ -83,15 +83,21 @@ export default function ExpenseList() {
             <div key={expense.id} className="group flex flex-col md:flex-row justify-between items-start md:items-center p-4 bg-slate-800/40 hover:bg-slate-800/80 rounded-xl border border-slate-700/50 transition-all duration-200">
               
               <div className="mb-3 md:mb-0">
-                <div className="flex items-center gap-3 mb-1">
-                  <span className="text-slate-200 font-medium">{expense.category}</span>
-                  <span className="text-xs px-2.5 py-0.5 bg-slate-900 text-slate-400 rounded-full border border-slate-700">
+                <div className="flex items-center gap-3 mb-0.5">
+                  {/* Primary text: Description (fallback to Category if empty) */}
+                  <span className="text-slate-100 font-medium text-base">
+                    {expense.description || expense.category}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 mt-1">
+                  {/* Secondary text: Category Badge and Date */}
+                  <span className="text-xs px-2 py-0.5 bg-slate-800 text-teal-400/80 rounded border border-slate-700 font-medium">
+                    {expense.category}
+                  </span>
+                  <span className="text-xs text-slate-500 font-mono">
                     {expense.date}
                   </span>
                 </div>
-                {expense.description && (
-                  <p className="text-sm text-slate-500">{expense.description}</p>
-                )}
               </div>
 
               <div className="text-lg font-semibold text-slate-100 group-hover:text-teal-300 transition-colors">

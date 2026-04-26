@@ -6,7 +6,9 @@ import { createExpenseSchema } from './schema.js';
 import db from './db/index.js'; // Note the .js extension, required for ESM
 
 const app = express();
-app.use(cors());
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:3000'
+}));
 app.use(express.json());
 
 
@@ -16,11 +18,11 @@ app.post('/expenses', (req: Request, res: Response): any => {
   try {
     // Step A: Validate incoming data
     const parsedData = createExpenseSchema.safeParse(req.body);
-    
+
     if (!parsedData.success) {
-      return res.status(400).json({ 
-        error: "Invalid payload", 
-        details: parsedData.error.issues 
+      return res.status(400).json({
+        error: "Invalid payload",
+        details: parsedData.error.issues
       });
     }
 
@@ -32,12 +34,12 @@ app.post('/expenses', (req: Request, res: Response): any => {
         INSERT INTO expenses (amount, category, description, date, idempotency_key)
         VALUES (?, ?, ?, ?, ?)
       `);
-      
+
       const result = insertStmt.run(amount, category, description || null, date, idempotency_key);
-      
+
       // Fetch and return the newly created row
       const newExpense = db.prepare('SELECT * FROM expenses WHERE id = ?').get(result.lastInsertRowid);
-      
+
       return res.status(201).json(newExpense);
 
     } catch (dbError: any) {
@@ -45,9 +47,9 @@ app.post('/expenses', (req: Request, res: Response): any => {
       // If the error is a unique constraint failure on idempotency_key, it's a retry.
       if (dbError.code === 'SQLITE_CONSTRAINT_UNIQUE') {
         console.log(`[Idempotency] Duplicate request caught for key: ${idempotency_key}. Returning existing record.`);
-        
+
         const existingExpense = db.prepare('SELECT * FROM expenses WHERE idempotency_key = ?').get(idempotency_key);
-        
+
         // Return 200 OK (not 201 Created) since it already existed
         return res.status(200).json(existingExpense);
       }
@@ -70,19 +72,24 @@ app.get('/expenses', (req: Request, res: Response): any => {
     let query = 'SELECT * FROM expenses';
     const queryParams: any[] = [];
 
-    // Apply filtering
+    // 1. WHERE clause comes first
     if (category && typeof category === 'string') {
       query += ' WHERE category = ?';
-      queryParams.push(category);
+      queryParams.push(category); // Push category variable first
     }
 
-    // Apply sorting
+    // 2. ORDER BY comes next
     if (sort === 'date_desc') {
       query += ' ORDER BY date DESC, created_at DESC';
     } else {
-      // Default fallback just in case
       query += ' ORDER BY created_at DESC';
     }
+
+    // 3. LIMIT and OFFSET must come absolute last
+    const limit = parseInt(req.query.limit as string) || 50;
+    const offset = parseInt(req.query.offset as string) || 0;
+    query += ' LIMIT ? OFFSET ?';
+    queryParams.push(limit, offset); // Push limit and offset last
 
     const stmt = db.prepare(query);
     const expenses = stmt.all(...queryParams);
