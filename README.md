@@ -1,245 +1,107 @@
 # ExpenseTracker (Fenmo Assessment)
 
-Full-stack expense tracking application with a TypeScript Express backend, SQLite persistence, and a Next.js frontend.
+A production-ready, full-stack personal finance application built under a strict time constraint. This architecture prioritizes data correctness, idempotency under spotty network conditions, and a resilient, highly responsive user experience.
 
-## What Is Implemented
+Live Application: [Insert Live App Link Here]
+Live API Endpoint: [Insert Live API Link Here]
 
-- Backend API in TypeScript + Express
-- SQLite storage via better-sqlite3
-- Strict request validation with Zod
-- Idempotent expense creation using `idempotency_key`
-- Expense listing with filter and sort support
-- Frontend in Next.js App Router + Tailwind CSS
-- TanStack Query for server state management
-- Expense form, expense list, and category summary pie chart (Recharts)
-- Backend schema validation tests using Node test runner (`tsx --test`)
+## 🚀 Tech Stack
 
-## Tech Stack
+- Frontend: Next.js 16 (App Router), React 19, Tailwind CSS v4, TypeScript
+- Data Fetching and State: TanStack Query (React Query)
+- Data Visualization: Recharts
+- Backend: Node.js, Express, TypeScript
+- Database: SQLite (via better-sqlite3 with WAL mode)
+- Validation: Zod (Client and Server side)
+- Testing: Node.js Native Test Runner (node:test)
 
-- Backend: Node.js, Express, TypeScript, better-sqlite3, Zod, CORS
-- Frontend: Next.js 16, React 19, TypeScript, Tailwind CSS v4, TanStack Query, Recharts, uuid
-- Tooling: tsx, ESLint
+## 🧠 Key Design Decisions and Engineering Focus
 
-## Monorepo Structure
+### 1. Robust Money Handling (Zero Floating-Point Errors)
 
-```text
-expense-tracker/
-├── .gitignore
-├── README.md
-├── backend/
-│   ├── .gitignore
-│   ├── package.json
-│   ├── package-lock.json
-│   ├── tsconfig.json
-│   ├── expenses.db
-│   ├── expenses.db-shm
-│   ├── expenses.db-wal
-│   └── src/
-│       ├── index.ts
-│       ├── schema.ts
-│       ├── schema.test.ts
-│       └── db/
-│           └── index.ts
-└── frontend/
-		├── .env.local
-		├── .gitignore
-		├── AGENTS.md
-		├── CLAUDE.md
-		├── package.json
-		├── package-lock.json
-		├── tsconfig.json
-		├── next.config.ts
-		├── next-env.d.ts
-		├── eslint.config.mjs
-		├── postcss.config.mjs
-		├── README.md
-		├── public/
-		│   ├── file.svg
-		│   ├── globe.svg
-		│   ├── next.svg
-		│   ├── vercel.svg
-		│   └── window.svg
-		└── src/
-				├── app/
-				│   ├── favicon.ico
-				│   ├── globals.css
-				│   ├── layout.tsx
-				│   ├── page.tsx
-				│   └── providers.tsx
-				├── components/
-				│   ├── ExpenseForm.tsx
-				│   ├── ExpenseList.tsx
-				│   └── SummaryChart.tsx
-				├── lib/
-				│   ├── api.ts
-				│   └── hooks.ts
-				└── types.ts
-```
+Financial applications cannot tolerate IEEE 754 floating-point precision loss (for example, `0.1 + 0.2 = 0.30000000000000004`).
 
-## Architecture Summary
+- Database level: Amounts are strictly validated and stored as `INTEGER` representing the smallest currency unit (paise/cents).
+- Application level: The Next.js frontend safely scales user decimal inputs up by 100 before network transmission, and scales down by 100 for UI rendering.
 
-### Backend
+### 2. Idempotency and Retry Safety
 
-- `POST /expenses`
-	- Validates payload with `createExpenseSchema` from `src/schema.ts`
-	- Persists expense with unique `idempotency_key`
-	- Returns:
-		- `201` for first successful creation
-		- `200` with existing row if duplicate idempotency key is retried
-- `GET /expenses`
-	- Optional query params:
-		- `category=<string>`
-		- `sort=date_desc` (fallback is `created_at DESC`)
+In real-world conditions (trains, bad mobile data, impatient double-clicking), clients will retry failed network requests. This system guarantees a user will never be double-charged for the same transaction.
 
-SQLite table:
+- Client generation: The frontend generates a unique UUID v4 as an `idempotency_key` when the form mounts or successfully resets.
+- Database enforcement: The `expenses` table enforces a strict `UNIQUE` constraint on the `idempotency_key`.
+- Graceful recovery: The Express backend catches `SQLITE_CONSTRAINT_UNIQUE` errors. If a duplicate key is detected, it intercepts the crash and safely returns a `200 OK` with the existing record.
 
-- `id` (INTEGER PRIMARY KEY AUTOINCREMENT)
-- `amount` (INTEGER, stored in paise)
-- `category` (TEXT)
-- `description` (TEXT, nullable)
-- `date` (TEXT, `YYYY-MM-DD`)
-- `idempotency_key` (TEXT UNIQUE)
-- `created_at` (DATETIME DEFAULT CURRENT_TIMESTAMP)
+### 3. Server-State Management (TanStack Query)
 
-### Frontend
+Instead of relying on fragile `useEffect` hooks, TanStack Query manages the frontend data layer. This provides automatic cache invalidation (instantly updating the list and chart after a POST), out-of-the-box loading/error states, and aggressive UI updates without manual refetching.
 
-- React Query provider configured in `src/app/providers.tsx`
-- API client in `src/lib/api.ts`
-- Hooks in `src/lib/hooks.ts`
-	- `useExpenses(category?, sort?)`
-	- `useCreateExpense()` with cache invalidation on success
-- `ExpenseForm`:
-	- Takes amount/category/date/description
-	- Converts rupees decimal to paise integer
-	- Generates UUID idempotency key per submission
-- `ExpenseList`:
-	- Category filtering + date sorting
-	- Loading, error, and empty states
-	- Total amount of visible expenses
-- `SummaryChart`:
-	- Category-wise spending distribution using Recharts pie chart
+### 4. Database Persistence Choice: SQLite
 
-## Validation Rules
+For this assessment, SQLite was chosen over a distributed relational DB (like PostgreSQL).
 
-`createExpenseSchema` enforces:
+- Why: It allows zero-configuration, instant local setup for reviewers while still enforcing strict ACID compliance and constraints.
+- Production tuning: Write-Ahead Logging (`journal_mode=WAL`) was enabled to improve concurrent read/write performance.
 
-- `amount`: positive integer
-- `category`: non-empty string
-- `description`: optional string
-- `date`: regex `YYYY-MM-DD`
-- `idempotency_key`: UUID format
+## ⚖️ Trade-offs and Intentional Omissions (Timebox Constraints)
 
-## Testing
+Given the limited timebox, the following deliberate trade-offs were made to prioritize core data correctness:
 
-Backend tests currently cover schema validation scenarios:
+- UI pagination: While the `GET /expenses` backend endpoint supports `limit` and `offset` query parameters to prevent event-loop blocking, the UI does not yet implement pagination controls to keep frontend scope manageable.
+- Authentication and multi-tenancy: The system currently assumes a single-user environment. In a real-world scenario, `user_id` relations and JWT/session management would be standard.
+- Security hardening: Packages like `helmet` (HTTP headers) and `express-rate-limit` (abuse protection) were omitted to focus on assignment business logic.
+- Monorepo separation: Both frontend and backend are housed in one repo for ease of review. A true microservice architecture would decouple deployment pipelines further.
 
-- Valid payload accepted
-- Negative amount rejected
-- Floating-point amount rejected
-- Bad date format rejected
+## ✨ Nice-to-Have Features Implemented
 
-Run backend tests:
+- Advanced UI polish: Built a premium, dark-themed dashboard prioritizing UX hierarchy (descriptions prioritized over categories).
+- Summary view: Implemented an efficient single-pass `reduce` function to aggregate categorical spending, visualized via a responsive Recharts donut graph.
+- Automated testing: Wrote zero-dependency unit tests using `node:test` to prove the Zod schema rejects negative money, floating-point numbers, and malformed dates.
+- Local timezone awareness: Fixed standard UTC date generation bugs by offsetting the browser local timezone, ensuring late-night expenses log on the correct day.
+
+## 🛠️ Local Development Setup
+
+### 1) Clone and Install
 
 ```bash
-cd backend
-npm test
+git clone <your-repo-url>
+cd expense-tracker
 ```
 
-## Setup and Run
-
-### Prerequisites
-
-- Node.js 18+
-- npm
-
-### 1) Install dependencies
+### 2) Start the Backend
 
 ```bash
-# backend
 cd backend
 npm install
-
-# frontend
-cd ../frontend
-npm install
-```
-
-### 2) Configure frontend env
-
-Create/update `frontend/.env.local`:
-
-```env
-NEXT_PUBLIC_API_URL=http://localhost:3001
-```
-
-### 3) Start backend
-
-```bash
-cd backend
 npm run dev
+# Server runs on http://localhost:3001
+# Tests can be run via `npm test`
 ```
 
-Backend runs on `http://localhost:3001`.
+### 3) Start the Frontend
 
-### 4) Start frontend
+In a new terminal window:
 
 ```bash
 cd frontend
+npm install
+# Ensure .env.local contains NEXT_PUBLIC_API_URL=http://localhost:3001
 npm run dev
+# Client runs on http://localhost:3000
 ```
 
-Frontend runs on `http://localhost:3000`.
-
-## API Quick Reference
+## 📡 API Contract
 
 ### POST /expenses
 
-Request body:
+Creates an expense idempotently.
 
-```json
-{
-	"amount": 15000,
-	"category": "Food",
-	"description": "Lunch at university",
-	"date": "2026-04-26",
-	"idempotency_key": "123e4567-e89b-12d3-a456-426614174000"
-}
-```
-
-Example:
-
-```bash
-curl -X POST http://localhost:3001/expenses \
-	-H "Content-Type: application/json" \
-	-d '{
-		"amount": 15000,
-		"category": "Food",
-		"description": "Lunch at university",
-		"date": "2026-04-26",
-		"idempotency_key": "123e4567-e89b-12d3-a456-426614174000"
-	}'
-```
+- Body: `amount` (int), `category` (str), `date` (YYYY-MM-DD), `description` (str, optional), `idempotency_key` (UUID).
+- Returns: `201 Created` on success, `200 OK` on duplicate key retry, `400 Bad Request` on invalid schema.
 
 ### GET /expenses
 
-Examples:
+Retrieves a list of expenses.
 
-```bash
-curl "http://localhost:3001/expenses"
-curl "http://localhost:3001/expenses?category=Food"
-curl "http://localhost:3001/expenses?sort=date_desc"
-```
-
-## Important Notes
-
-- Currency is stored as integer paise in DB to avoid floating point precision errors.
-- SQLite artifacts are ignored from version control via root and backend `.gitignore`.
-- The backend currently has a UI library dependency (`recharts`) listed in `backend/package.json` that is not required server-side.
-
-## Future Improvements
-
-- Move DB path/config to environment variables.
-- Add API integration tests for routes (`POST /expenses`, `GET /expenses`).
-- Add rate limiting, Helmet, and structured logging for production hardening.
-- Add pagination and date range filtering.
-- Add CI pipeline with lint, type-check, and tests.
+- Query params: `category` (optional filter), `sort` (optional, accepts `date_desc`), `limit` (default 50), `offset` (default 0).
+- Returns: `200 OK` with JSON array of expenses.
