@@ -2,8 +2,8 @@
 
 A production-ready, full-stack personal finance application built under a strict time constraint. This architecture prioritizes data correctness, idempotency under spotty network conditions, and a resilient, highly responsive user experience.
 
-Live Application: [Insert Live App Link Here]
-Live API Endpoint: [Insert Live API Link Here]
+Live Application: https://expense-tracker-chi-sable-18.vercel.app
+Live API Endpoint: https://expensetrackerapi-jsle.onrender.com
 
 ## 🚀 Tech Stack
 
